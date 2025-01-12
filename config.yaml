@@ -1,8 +1,11 @@
 # tools and scripts
 path:
-  samtools: /path/to/samtools
-  hisat3n: /path/to/hisat-3n
-  hisat3ntable: /path/to/hisat-3n-table
+# 更改工具路径
+  samtools: ../tools/samtools/samtools
+  hisat3n: ../tools/hisat-3n/hisat-3n
+  hisat3ntable: ../tools/hisat-3n/hisat-3n-table
+# 修改结束
+
   join_pileup.py: ../bin/join_pileup.py
   group_pileup.py: ../bin/group_pileup.py
   select_sites.py: ../bin/select_sites.py
@@ -16,14 +19,18 @@ path:
 # customized_genes:
 #   - a.fa
 #   - b.fa
-# library: INLINE
-# makedup: false
+# 启用全局配置
+library: INLINE
+makedup: false
+# 结束更改
 
 # reference genome and index
 reference:
-  contamination:
-    fa: ~/reference/genome/contamination/contamination.fa
-    hisat3n: ~/reference/index/hisat3n/contamination/contamination
+# 去除污染物的参考数据库
+  # contamination:
+  #   fa: ~/reference/genome/contamination/contamination.fa
+  #   hisat3n: ~/reference/index/hisat3n/contamination/contamination
+# 修改结束
   genes:
     fa: ~/reference/genome/Homo_sapiens.GRCh38.sncRNA.fa
     hisat3n: ~/reference/index/hisat3n/Homo_sapiens.GRCh38.sncRNA/Homo_sapiens.GRCh38.sncRNA

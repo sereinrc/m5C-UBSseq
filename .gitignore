@@ -1,1 +1,2 @@
-.snakemake/
+# 更改忽略的文件夹
+workspace/
