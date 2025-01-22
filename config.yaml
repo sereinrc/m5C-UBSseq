@@ -1,9 +1,9 @@
 # tools and scripts
 path:
 # 更改工具路径
-  samtools: ../tools/samtools/samtools
-  hisat3n: ../tools/hisat-3n/hisat-3n
-  hisat3ntable: ../tools/hisat-3n/hisat-3n-table
+  samtools: ../../tools/samtools/samtools
+  hisat3n: ../../tools/hisat-3n/hisat-3n
+  hisat3ntable: ../../tools/hisat-3n/hisat-3n-table
 # 修改结束
 
   join_pileup.py: ../bin/join_pileup.py
@@ -19,40 +19,34 @@ path:
 # customized_genes:
 #   - a.fa
 #   - b.fa
-# 启用全局配置
-library: INLINE
+library: TAKARAV3
 makedup: false
-# 结束更改
 
 # reference genome and index
 reference:
-# 去除污染物的参考数据库
-  # contamination:
-  #   fa: ~/reference/genome/contamination/contamination.fa
-  #   hisat3n: ~/reference/index/hisat3n/contamination/contamination
-# 修改结束
+  contamination:
+    fa: ../../reference/genome/GCF_000008865.2_ASM886v2_genomic.fna
+    hisat3n: ../../reference/index/GCF_000008865.2_ASM886v2_genomic/GCF_000008865.2_ASM886v2_genomic
   genes:
-    fa: ~/reference/genome/Homo_sapiens.GRCh38.sncRNA.fa
-    hisat3n: ~/reference/index/hisat3n/Homo_sapiens.GRCh38.sncRNA/Homo_sapiens.GRCh38.sncRNA
+    fa: ../../reference/genome/Homo_sapiens.GRCh38.ncrna.fa
+    hisat3n: ../../reference/index/Homo_sapiens.GRCh38.ncrna/Homo_sapiens.GRCh38.ncrna
   genome:
-    fa: ~/reference/genome/Homo_sapiens.GRCh38.genome.fa
-    hisat3n: ~/reference/index/hisat3n/Homo_sapiens.GRCh38.genome/Homo_sapiens.GRCh38.genome
+    fa: ../../reference/genome/GCF_000001405.40_GRCh38.p14_genomic.fna
+    hisat3n: ../../reference/index/GCF_000001405.40_GRCh38.p14_genomic/GCF_000001405.40_GRCh38.p14_genomic
 
 # Sample name should be indentical and listed in the 2nd level of the yaml file
 # Each sample will be analysis seperately, but
 # samples sharing the same group id will be regared as biological replicates and combined in the comparing step
 samples:
-  CONTROL-rep1:
+  WT-rep1:
     data:
-      - R1: ../data/test1_R1.fq.gz
-        R2: ../data/test1_R2.fq.gz
-    group: CONTROL
-  DRUG-rep1:
-    data:
-      - R1: ../data/test2_R1.fq.gz
+      - R1: ../../data/SRR23538292.fastq.gz
     group: DRUG
-  DRUG-rep2:
+  WT-rep2:
     data:
-      - R1: ../data/test3_R1.fq.gz
-        R2: ../data/test3_R2.fq.gz
+      - R1: ../../data/SRR23538291.fastq.gz
+    group: DRUG
+  WT-rep3:
+    data:
+      - R1: ../../data/SRR23538290.fastq.gz
     group: DRUG
