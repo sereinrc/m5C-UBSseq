@@ -4,6 +4,8 @@ path:
   samtools: ../../tools/samtools/samtools
   hisat3n: ../../tools/hisat-3n/hisat-3n
   hisat3ntable: ../../tools/hisat-3n/hisat-3n-table
+  umicollapse: ../../../.miniconda3/envs/snakemake/share/umicollapse-1.1.0-0/umicollapse.jar
+  bgzip: ../../tools/htslib/bgzip
 # 修改结束
 
   join_pileup.py: ../bin/join_pileup.py
@@ -19,20 +21,21 @@ path:
 # customized_genes:
 #   - a.fa
 #   - b.fa
-library: TAKARAV3
+# library: ILLUMINARNA
+library: INLINE
 makedup: false
 
 # reference genome and index
 reference:
   contamination:
-    fa: ../../reference/genome/GCF_000008865.2_ASM886v2_genomic.fna
-    hisat3n: ../../reference/index/GCF_000008865.2_ASM886v2_genomic/GCF_000008865.2_ASM886v2_genomic
+    fa: ../../data/reference/fastq/contamination.fa
+    hisat3n: ../../data/reference/index/contamination
   genes:
-    fa: ../../reference/genome/Homo_sapiens.GRCh38.ncrna.fa
-    hisat3n: ../../reference/index/Homo_sapiens.GRCh38.ncrna/Homo_sapiens.GRCh38.ncrna
+    fa: ../../data/reference/fastq/gencode.v47.lncRNA_transcripts.fa
+    hisat3n: ../../data/reference/index/gencode.v47.lncRNA_transcripts
   genome:
-    fa: ../../reference/genome/GCF_000001405.40_GRCh38.p14_genomic.fna
-    hisat3n: ../../reference/index/GCF_000001405.40_GRCh38.p14_genomic/GCF_000001405.40_GRCh38.p14_genomic
+    fa: ../../data/reference/fastq/GRCh38.primary_assembly.genome.fa
+    hisat3n: ../../data/reference/index/GRCh38.primary_assembly.genome
 
 # Sample name should be indentical and listed in the 2nd level of the yaml file
 # Each sample will be analysis seperately, but
@@ -40,13 +43,13 @@ reference:
 samples:
   WT-rep1:
     data:
-      - R1: ../../data/SRR23538292.fastq.gz
+      - R1: ../../data/samples/SRR23538292.fastq.gz
     group: DRUG
   WT-rep2:
     data:
-      - R1: ../../data/SRR23538291.fastq.gz
+      - R1: ../../data/samples/SRR23538291.fastq.gz
     group: DRUG
   WT-rep3:
     data:
-      - R1: ../../data/SRR23538290.fastq.gz
+      - R1: ../../data/samples/SRR23538290.fastq.gz
     group: DRUG

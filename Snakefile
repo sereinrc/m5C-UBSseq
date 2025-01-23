@@ -72,13 +72,12 @@ rule cutadapt_SE:
         fastq_cut=temp(TEMPDIR / "cut_adapter_SE/{sample}_{rn}_R1.fq.gz"),
         fastq_tooshort=INTERNALDIR / "discarded_reads/{sample}_{rn}_R1.tooshort.fq.gz",
         fastq_untrimmed=INTERNALDIR / "discarded_reads/{sample}_{rn}_R1.untrimmed.fq.gz",
-        report="report_reads/trimming/{sample}_{rn}.json",
     params:
         library=lambda wildcards: SAMPLE2LIB[wildcards.sample],
     threads: 20
     shell:
         """
-        cutseq -t {threads} -A {params.library} -m 20 --trim-polyA --ensure-inline-barcode --auto-rc -o {output.fastq_cut} -s {output.fastq_tooshort} -u {output.fastq_untrimmed} --json-file {output.report} {input} 
+        cutseq {input} -t {threads} -A {params.library} -m 20 --trim-polyA --ensure-inline-barcode  -o {output.fastq_cut} -s {output.fastq_tooshort} -u {output.fastq_untrimmed}
         """
 
 
@@ -99,13 +98,12 @@ rule cutadapt_PE:
             INTERNALDIR / "discarded_reads/{sample}_{rn}_R1.untrimmed.fq.gz",
             INTERNALDIR / "discarded_reads/{sample}_{rn}_R2.untrimmed.fq.gz",
         ],
-        report="report_reads/trimming/{sample}_{rn}.report",
     params:
         library=lambda wildcards: SAMPLE2LIB[wildcards.sample],
     threads: 20
     shell:
         """
-        cutseq -t {threads} -A {params.library} -m 20 --trim-polyA --ensure-inline-barcode --auto-rc -o {output.fastq_cut} -s {output.fastq_tooshort} -u {output.fastq_untrimmed} --json-file {output.report} {input} 
+        cutseq {input} -t {threads} -A {params.library} -m 20 --trim-polyA --ensure-inline-barcode  -o {output.fastq_cut} -s {output.fastq_tooshort} -u {output.fastq_untrimmed}
         """
 
 
@@ -183,7 +181,7 @@ rule hisat2_3n_mapping_genes_SE:
     threads: 24
     shell:
         """
-        {BIN[hisat3n]} --index {params.index} -p {threads} --summary-file {output.summary} --new-summary -q -U {input[0]} --directional-mapping --all --norc --base-change C,T --mp 8,2 --no-spliced-alignment | \
+        {BIN[hisat3n]} --index {params.index} -p {threads} --summary-file {output.summary} --new-summary -q -U {input[0]} --directional-mapping  --base-change C,T --mp 8,2 --no-spliced-alignment | \
             {BIN[samtools]} view -@ {threads} -e '!flag.unmap' -O BAM -U {output.unmapped} -o {output.mapped}
         """
 
@@ -254,7 +252,7 @@ rule hisat2_3n_mapping_genes_PE:
     threads: 24
     shell:
         """
-        {BIN[hisat3n]} --index {params.index} -p {threads} --summary-file {output.summary} --new-summary -q -1 {input[0]} -2 {input[1]} --directional-mapping --all --norc --base-change C,T --mp 8,2 --no-spliced-alignment | \
+        {BIN[hisat3n]} --index {params.index} -p {threads} --summary-file {output.summary} --new-summary -q -1 {input[0]} -2 {input[1]} --directional-mapping  --base-change C,T --mp 8,2 --no-spliced-alignment | \
             {BIN[samtools]} view -@ {threads} -e 'flag.proper_pair && !flag.unmap && !flag.munmap' -O BAM -U {output.unmapped} -o {output.mapped}
         """
 
@@ -387,7 +385,7 @@ rule dedup_mapping:
         if WITH_UMI:
             shell(
                 """
-            /software/java-15.0.2-el8-x86_64/bin/java -server -Xms8G -Xmx40G -Xss100M -Djava.io.tmpdir={params.tmp} -jar {BIN[umicollapse]} bam \
+            java -server -Xms8G -Xmx40G -Xss100M -Djava.io.tmpdir={params.tmp} -jar {BIN[umicollapse]} bam \
                 -t 2 -T {threads} --data naive --merge avgqual --two-pass -i {input.bam} -o {output.bam} >{output.txt}
             """
             )
@@ -436,7 +434,7 @@ rule hisat2_3n_calling_unfiltered_unique:
     threads: 16
     shell:
         """
-        {BIN[samtools]} view -e "rlen<100000" -h {input} | {BIN[hisat3ntable]} -p {threads} -u --alignments - --ref {params.fa} --output-name /dev/stdout --base-change C,T | cut -f 1,2,3,5,7 | bgzip -@ {threads} -c > {output}
+        {BIN[samtools]} view -e "rlen<100000" -h {input} | {BIN[hisat3ntable]} -p {threads} -u --alignments - --ref {params.fa} --output-name /dev/stdout --base-change C,T | cut -f 1,2,3,5,7 | {BIN[bgzip]} -@ {threads} -c > {output}
         """
 
 
@@ -454,7 +452,7 @@ rule hisat2_3n_calling_unfiltered_multi:
     threads: 16
     shell:
         """
-        {BIN[samtools]} view -e "rlen<100000" -h {input} | {BIN[hisat3ntable]} -p {threads} -m --alignments - --ref {params.fa} --output-name /dev/stdout --base-change C,T | cut -f 1,2,3,5,7 | bgzip -@ {threads} -c > {output}
+        {BIN[samtools]} view -e "rlen<100000" -h {input} | {BIN[hisat3ntable]} -p {threads} -m --alignments - --ref {params.fa} --output-name /dev/stdout --base-change C,T | cut -f 1,2,3,5,7 | {BIN[bgzip]} -@ {threads} -c > {output}
         """
 
 
@@ -484,7 +482,7 @@ rule hisat2_3n_calling_filtered_unqiue:
     threads: 16
     shell:
         """
-        {BIN[samtools]} view -e "rlen<100000" -h {input} | {BIN[hisat3ntable]} -p {threads} -u --alignments - --ref {params.fa} --output-name /dev/stdout --base-change C,T | cut -f 1,2,3,5,7 | bgzip -@ {threads} -c > {output}
+        {BIN[samtools]} view -e "rlen<100000" -h {input} | {BIN[hisat3ntable]} -p {threads} -u --alignments - --ref {params.fa} --output-name /dev/stdout --base-change C,T | cut -f 1,2,3,5,7 | {BIN[bgzip]} -@ {threads} -c > {output}
         """
 
 
@@ -502,7 +500,7 @@ rule hisat2_3n_calling_filtered_multi:
     threads: 16
     shell:
         """
-        {BIN[samtools]} view -e "rlen<100000" -h {input} | {BIN[hisat3ntable]} -p {threads} -m --alignments - --ref {params.fa} --output-name /dev/stdout --base-change C,T | cut -f 1,2,3,5,7 | bgzip -@ {threads} -c > {output}
+        {BIN[samtools]} view -e "rlen<100000" -h {input} | {BIN[hisat3ntable]} -p {threads} -m --alignments - --ref {params.fa} --output-name /dev/stdout --base-change C,T | cut -f 1,2,3,5,7 | {BIN[bgzip]} -@ {threads} -c > {output}
         """
 
 
