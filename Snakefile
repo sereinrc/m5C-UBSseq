@@ -74,75 +74,10 @@ rule cutadapt_SE:
         fastq_untrimmed=INTERNALDIR / "discarded_reads/{sample}_{rn}_R1.untrimmed.fq.gz",
     params:
         library=lambda wildcards: SAMPLE2LIB[wildcards.sample],
-    threads: 20
+    threads: 21
     shell:
         """
         cutseq {input} -t {threads} -A {params.library} -m 20 --trim-polyA --ensure-inline-barcode  -o {output.fastq_cut} -s {output.fastq_tooshort} -u {output.fastq_untrimmed}
-        """
-
-
-rule cutadapt_PE:
-    input:
-        lambda wildcards: SAMPLE2DATA[wildcards.sample][wildcards.rn].get("R1", "/"),
-        lambda wildcards: SAMPLE2DATA[wildcards.sample][wildcards.rn].get("R2", "/"),
-    output:
-        fastq_cut=[
-            temp(TEMPDIR / "cut_adapter_PE/{sample}_{rn}_R1.fq.gz"),
-            temp(TEMPDIR / "cut_adapter_PE/{sample}_{rn}_R2.fq.gz"),
-        ],
-        fastq_tooshort=[
-            INTERNALDIR / "discarded_reads/{sample}_{rn}_R1.tooshort.fq.gz",
-            INTERNALDIR / "discarded_reads/{sample}_{rn}_R2.tooshort.fq.gz",
-        ],
-        fastq_untrimmed=[
-            INTERNALDIR / "discarded_reads/{sample}_{rn}_R1.untrimmed.fq.gz",
-            INTERNALDIR / "discarded_reads/{sample}_{rn}_R2.untrimmed.fq.gz",
-        ],
-    params:
-        library=lambda wildcards: SAMPLE2LIB[wildcards.sample],
-    threads: 20
-    shell:
-        """
-        cutseq {input} -t {threads} -A {params.library} -m 20 --trim-polyA --ensure-inline-barcode  -o {output.fastq_cut} -s {output.fastq_tooshort} -u {output.fastq_untrimmed}
-        """
-
-
-rule prepare_genes_index:
-    input:
-        CUSTOMIZED_GENES,
-    output:
-        fa="prepared_genes/genes.fa",
-        index="prepared_genes/genes.3n.CT.1.ht2",
-    params:
-        index="prepared_genes/genes",
-    threads: 12
-    shell:
-        """
-        cat {input} >{output.fa}
-        rm -f `dirname {output.index}`/`basename {output.index} ".CT.1.ht2"`.*.ht2
-        ~/tools/hisat2/hisat-3n-build -p 12 --base-change C,T {output.fa} {params.index}
-        """
-
-
-rule build_gene_index:
-    input:
-        fa="prepared_genes/genes.fa",
-    output:
-        fai="prepared_genes/genes.fa.fai",
-    shell:
-        """
-        samtools faidx {output.fa}
-        """
-
-
-rule generate_saf_gene:
-    input:
-        fai="prepared_genes/genes.fa.fai",
-    output:
-        saf="prepared_genes/genes.saf",
-    shell:
-        """
-        awk 'BEGIN{{OFS="\\t"}}{{print $1,$1,0,$2,"+"}}' {input} > {output}
         """
 
 
@@ -158,7 +93,7 @@ rule hisat2_3n_mapping_contamination_SE:
         summary="report_reads/mapping/{sample}_{rn}.contamination.summary",
     params:
         index=REF["contamination"]["hisat3n"],
-    threads: 24
+    threads: 21
     shell:
         """
         {BIN[hisat3n]} --index {params.index} -p {threads} --summary-file {output.summary} --new-summary -q -U {input[0]} --directional-mapping --base-change C,T --mp 8,2 --no-spliced-alignment | \
@@ -178,7 +113,7 @@ rule hisat2_3n_mapping_genes_SE:
         index=(
             REF["genes"]["hisat3n"] if not CUSTOMIZED_GENES else "prepared_genes/genes"
         ),
-    threads: 24
+    threads: 21
     shell:
         """
         {BIN[hisat3n]} --index {params.index} -p {threads} --summary-file {output.summary} --new-summary -q -U {input[0]} --directional-mapping  --base-change C,T --mp 8,2 --no-spliced-alignment | \
@@ -195,7 +130,7 @@ rule hisat2_3n_mapping_genome_SE:
         summary="report_reads/mapping/{sample}_{rn}.genome.summary",
     params:
         index=REF["genome"]["hisat3n"],
-    threads: 24
+    threads: 21
     shell:
         """
         {BIN[hisat3n]} --index {params.index} -p {threads} --summary-file {output.summary} --new-summary -q -U {input[0]} --directional-mapping --base-change C,T --pen-noncansplice 20 --mp 4,1 | \
@@ -215,81 +150,6 @@ rule extract_unmap_bam_internal_SE:
         """
 
 
-# Mapping (PE mapping mode)
-
-
-rule hisat2_3n_mapping_contamination_PE:
-    input:
-        TEMPDIR / "cut_adapter_PE/{sample}_{rn}_R1.fq.gz",
-        TEMPDIR / "cut_adapter_PE/{sample}_{rn}_R2.fq.gz",
-    output:
-        mapped=temp(TEMPDIR / "mapping_unsorted_PE/{sample}_{rn}.contamination.bam"),
-        unmapped=temp(TEMPDIR / "mapping_discarded_PE/{sample}_{rn}.contamination.bam"),
-        summary="report_reads/mapping/{sample}_{rn}.contamination.summary",
-    params:
-        index=REF["contamination"]["hisat3n"],
-    threads: 24
-    shell:
-        """
-        {BIN[hisat3n]} --index {params.index} -p {threads} --summary-file {output.summary} --new-summary -q -1 {input[0]} -2 {input[1]} --directional-mapping --base-change C,T --mp 8,2 --no-spliced-alignment | \
-            {BIN[samtools]} view -@ {threads} -e 'flag.proper_pair && !flag.unmap && !flag.munmap' -O BAM -U {output.unmapped} -o {output.mapped}
-        """
-
-
-rule hisat2_3n_mapping_genes_PE:
-    input:
-        TEMPDIR / "unmapped_internal_PE/{sample}_{rn}_R1.contamination.fq.gz",
-        TEMPDIR / "unmapped_internal_PE/{sample}_{rn}_R2.contamination.fq.gz",
-        "prepared_genes/genes.3n.CT.1.ht2" if CUSTOMIZED_GENES else [],
-    output:
-        mapped=temp(TEMPDIR / "mapping_unsorted_PE/{sample}_{rn}.genes.bam"),
-        unmapped=temp(TEMPDIR / "mapping_discarded_PE/{sample}_{rn}.genes.bam"),
-        summary="report_reads/mapping/{sample}_{rn}.genes.summary",
-    params:
-        index=(
-            REF["genes"]["hisat3n"] if not CUSTOMIZED_GENES else "prepared_genes/genes"
-        ),
-    threads: 24
-    shell:
-        """
-        {BIN[hisat3n]} --index {params.index} -p {threads} --summary-file {output.summary} --new-summary -q -1 {input[0]} -2 {input[1]} --directional-mapping  --base-change C,T --mp 8,2 --no-spliced-alignment | \
-            {BIN[samtools]} view -@ {threads} -e 'flag.proper_pair && !flag.unmap && !flag.munmap' -O BAM -U {output.unmapped} -o {output.mapped}
-        """
-
-
-rule hisat2_3n_mapping_genome_PE:
-    input:
-        TEMPDIR / "unmapped_internal_PE/{sample}_{rn}_R1.genes.fq.gz",
-        TEMPDIR / "unmapped_internal_PE/{sample}_{rn}_R2.genes.fq.gz",
-    output:
-        mapped=temp(TEMPDIR / "mapping_unsorted_PE/{sample}_{rn}.genome.bam"),
-        unmapped=temp(TEMPDIR / "mapping_discarded_PE/{sample}_{rn}.genome.bam"),
-        summary="report_reads/mapping/{sample}_{rn}.genome.summary",
-    params:
-        index=REF["genome"]["hisat3n"],
-    threads: 24
-    shell:
-        """
-        {BIN[hisat3n]} --index {params.index} -p {threads} --summary-file {output.summary} --new-summary -q -1 {input[0]} -2 {input[1]} --directional-mapping --base-change C,T --pen-noncansplice 20 --mp 4,1 | \
-            {BIN[samtools]} view -@ {threads} -e 'flag.proper_pair && !flag.unmap && !flag.munmap' -O BAM -U {output.unmapped} -o {output.mapped}
-        """
-
-
-rule extract_unmap_bam_internal_PE:
-    input:
-        TEMPDIR / "mapping_discarded_PE/{sample}_{rn}.{reftype}.bam",
-    output:
-        r1=temp(TEMPDIR / "unmapped_internal_PE/{sample}_{rn}_R1.{reftype}.fq.gz"),
-        r2=temp(TEMPDIR / "unmapped_internal_PE/{sample}_{rn}_R2.{reftype}.fq.gz"),
-    threads: 4
-    shell:
-        """
-        {BIN[samtools]} fastq -@ {threads} -1 {output.r1} -2 {output.r2} -0 /dev/null -s /dev/null -n {input}
-        """
-
-
-ruleorder: extract_unmap_bam_final_PE > extract_unmap_bam_final_SE
-
 
 rule extract_unmap_bam_final_SE:
     input:
@@ -300,21 +160,6 @@ rule extract_unmap_bam_final_SE:
     shell:
         """
         mv {input.r1} {output.r1}
-        """
-
-
-rule extract_unmap_bam_final_PE:
-    input:
-        r1=TEMPDIR / "unmapped_internal_PE/{sample}_{rn}_R1.genome.fq.gz",
-        r2=TEMPDIR / "unmapped_internal_PE/{sample}_{rn}_R2.genome.fq.gz",
-    output:
-        r1=INTERNALDIR / "discarded_reads/{sample}_{rn}_R1.unmapped.fq.gz",
-        r2=INTERNALDIR / "discarded_reads/{sample}_{rn}_R2.unmapped.fq.gz",
-    threads: 4
-    shell:
-        """
-        mv {input.r1} {output.r1}
-        mv {input.r2} {output.r2}
         """
 
 
@@ -329,9 +174,10 @@ rule hisat2_3n_sort:
     output:
         INTERNALDIR / "run_sorted/{sample}_{rn}.{ref}.bam",
     threads: 16
+    #限制每个线程的内存，保证更多的并行
     shell:
         """
-        {BIN[samtools]} sort -@ {threads} --write-index -m 3G -O BAM -o {output} {input}
+        {BIN[samtools]} sort -@ {threads} --write-index -m 2G -O BAM -o {output} {input}
         """
 
 
@@ -380,40 +226,34 @@ rule dedup_mapping:
         txt="report_reads/dedup/{sample}.{ref}.log",
     params:
         tmp=os.environ["TMPDIR"],
-    threads: 20
-    run:
-        if WITH_UMI:
-            shell(
-                """
-            java -server -Xms8G -Xmx40G -Xss100M -Djava.io.tmpdir={params.tmp} -jar {BIN[umicollapse]} bam \
-                -t 2 -T {threads} --data naive --merge avgqual --two-pass -i {input.bam} -o {output.bam} >{output.txt}
-            """
-            )
-        elif MARKDUP:
-            shell(
-                """
-                ~/tools/jdk8u322-b06-jre/bin/java -Xmx36G -jar ~/tools/gatk-4.2.5.0/gatk-package-4.2.5.0-local.jar MarkDuplicates \
-                    -I {input} -O {output.bam} -M {output.txt} --DUPLICATE_SCORING_STRATEGY SUM_OF_BASE_QUALITIES --REMOVE_DUPLICATES true --VALIDATION_STRINGENCY SILENT --TMP_DIR {params.tmp}
-            """
-            )
-        else:
-            shell(
-                """
-                cp {input.bam} {output.bam}
-                touch {output.txt}
-            """
-            )
-
-
-rule dedup_index:
-    input:
-        bam=INTERNALDIR / "aligned_bam/{sample}.{ref}.bam",
-    output:
-        bai=INTERNALDIR / "aligned_bam/{sample}.{ref}.bam.bai",
-    threads: 6
+    threads: 16
+    # run:
+    #     if WITH_UMI:
+    #         shell(
+    #             """
+    #         java -server -Xms8G -Xmx40G -Xss100M -Djava.io.tmpdir={params.tmp} -jar {BIN[umicollapse]} bam \
+    #             -t 2 -T {threads} --data naive --merge avgqual --two-pass -i {input.bam} -o {output.bam} >{output.txt}
+    #         """
+    #         )
+    #     elif MARKDUP:
+    #         shell(
+    #             """
+    #             ~/tools/jdk8u322-b06-jre/bin/java -Xmx36G -jar ~/tools/gatk-4.2.5.0/gatk-package-4.2.5.0-local.jar MarkDuplicates \
+    #                 -I {input} -O {output.bam} -M {output.txt} --DUPLICATE_SCORING_STRATEGY SUM_OF_BASE_QUALITIES --REMOVE_DUPLICATES true --VALIDATION_STRINGENCY SILENT --TMP_DIR {params.tmp}
+    #         """
+    #         )
+    #     else:
+    #         shell(
+    #             """
+    #             cp {input.bam} {output.bam}
+    #             touch {output.txt}
+    #         """
+    #         )
+    # 取消分支判断，简化流程，并限制内存大小，保证更多的并行
     shell:
         """
-        {BIN[samtools]} index -@ {threads} {input}
+        java -server -Xms8G -Xmx32G -Xss100M -Djava.io.tmpdir={params.tmp} -jar {BIN[umicollapse]} bam \
+        -t 2 -T {threads} --data naive --merge avgqual --two-pass -i {input.bam} -o {output.bam} >{output.txt}
         """
 
 
